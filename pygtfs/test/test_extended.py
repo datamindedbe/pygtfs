@@ -16,7 +16,7 @@ from pygtfs import Schedule
 
 class TestExtendedSchedule(unittest.TestCase):
     def setUp(self):
-        self.schedule = Schedule(":memory:")
+        self.schedule = Schedule("postgresql://localhost:5432/nmbs")
         data_location = os.path.join(os.path.dirname(__file__),
                                      "data", "sample_feed_extended")
         overwrite_feed(self.schedule, data_location)

@@ -11,7 +11,7 @@ from __future__ import (division, absolute_import, print_function,
 
 import datetime
 
-from sqlalchemy import Column, ForeignKey, ForeignKeyConstraint, and_
+from sqlalchemy import Column, ForeignKey, ForeignKeyConstraint, and_, UniqueConstraint
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, validates, synonym
 from sqlalchemy.types import (Unicode, Integer, Float, Boolean, Date, Interval,
@@ -184,7 +184,13 @@ class Stop(Base):
     transfers_from = relationship('Transfer', backref="stop_from",
                                   foreign_keys='Transfer.from_stop_id')
     translations = relationship('Translation',
-                                foreign_keys='Translation.trans_id')
+                                foreign_keys='[Translation.feed_id, Translation.trans_id]')
+
+    # __table_args__ = (ForeignKeyConstraint(["feed_id", 'trans_id'],
+    #                                        ["stops.feed_id",
+    #                                         "stops.stop_name"]),)
+
+    __table_args__ = (UniqueConstraint('feed_id', 'stop_name', name='unique_feed_id_stop_name'),)
 
     _validate_location = _validate_int_choice([None, 0, 1, 2], 'location_type')
     _validate_wheelchair = _validate_int_choice([None, 0, 1, 2],
@@ -433,6 +439,8 @@ class ShapePoint(Base):
     shape_dist_traveled = Column(Float, nullable=True)
 
     trips = relationship("Trip", backref="shape_points")
+
+    __table_args__ = (UniqueConstraint('feed_id', 'shape_id', name='unique_feed_id_shape_id'),)
 
     _validate_lon_lat = _validate_float_range(-180, 180,
                                               'shape_pt_lon', 'shape_pt_lat')
