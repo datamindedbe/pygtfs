@@ -29,7 +29,6 @@ def _validate_date(*field_names):
 
     return make_date
 
-
 def _validate_time_delta(*field_names):
     @validates(*field_names)
     def time_delta(self, key, value):
@@ -129,11 +128,11 @@ class Feed(Base):
     service_exceptions = relationship("ServiceException", backref=("feed"), cascade="all, delete-orphan")
     fares = relationship("Fare", backref=("feed"), cascade="all, delete-orphan")
     fare_rules = relationship("FareRule", backref=("feed"), cascade="all, delete-orphan")
-    shape_points = relationship("ShapePoint", backref=("feed"), cascade="all, delete-orphan")
+    #shape_points = relationship("ShapePoint", backref=("feed"), cascade="all, delete-orphan")
     frequencies = relationship("Frequency", backref=("feed"), cascade="all, delete-orphan")
     transfers = relationship("Transfer", backref=("feed"), cascade="all, delete-orphan")
     feedinfo = relationship("FeedInfo", backref=("feed"), cascade="all, delete-orphan")
-    translations = relationship("Translation", backref=("feed"), cascade="all, delete-orphan")
+
 
     def __repr__(self):
         return '<Feed %s: %s>' % (self.feed_id, self.feed_name)
@@ -173,7 +172,7 @@ class Stop(Base):
     zone_id = Column(Unicode, nullable=True)
     stop_url = Column(Unicode, nullable=True)
     location_type = Column(Integer, nullable=True)
-    parent_station = Column(Integer, nullable=True)
+    parent_station = Column(Unicode, nullable=True)
     stop_timezone = Column(Unicode, nullable=True)
     wheelchair_boarding = Column(Integer, nullable=True)
     platform_code = Column(Unicode, nullable=True)
@@ -183,14 +182,6 @@ class Stop(Base):
                                 foreign_keys='Transfer.to_stop_id')
     transfers_from = relationship('Transfer', backref="stop_from",
                                   foreign_keys='Transfer.from_stop_id')
-    translations = relationship('Translation',
-                                foreign_keys='[Translation.feed_id, Translation.trans_id]')
-
-    # __table_args__ = (ForeignKeyConstraint(["feed_id", 'trans_id'],
-    #                                        ["stops.feed_id",
-    #                                         "stops.stop_name"]),)
-
-    __table_args__ = (UniqueConstraint('feed_id', 'stop_name', name='unique_feed_id_stop_name'),)
 
     _validate_location = _validate_int_choice([None, 0, 1, 2], 'location_type')
     _validate_wheelchair = _validate_int_choice([None, 0, 1, 2],
@@ -273,7 +264,10 @@ class Trip(Base):
 
     # TODO: The service_id references to calendar or to calendar_dates.
     # Need to implement this requirement, but not using a simple foreign key.
-    __table_args__ = create_foreign_keys('routes.route_id', 'shapes.shape_id')
+    __table_args__ = create_foreign_keys('routes.route_id')
+    __table_args__ = (ForeignKeyConstraint(["feed_id", 'route_id'],
+                                           ["routes.feed_id",
+                                            "routes.route_id"]),)
 
     _validate_direction_id = _validate_int_choice([None, 0, 1], 'direction_id')
     _validate_wheelchair = _validate_int_choice([None, 0, 1, 2],
@@ -283,21 +277,6 @@ class Trip(Base):
     def __repr__(self):
         return '<Trip %s>' % self.trip_id
 
-
-class Translation(Base):
-    __tablename__ = 'translations'
-    _plural_name_ = 'translations'
-    feed_id = Column(Integer, ForeignKey('_feed.feed_id'))
-    trans_id = Column(Unicode, primary_key=True, index=True)
-    lang = Column(Unicode, primary_key=True)
-    translation = Column(Unicode)
-    __table_args__ = (ForeignKeyConstraint(["feed_id", 'trans_id'],
-                                           ["stops.feed_id",
-                                            "stops.stop_name"]),)
-
-    def __repr__(self):
-        return '<Translation %s (to %s): %s>' % (self.trans_id, self.lang,
-                                                 self.translation)
 
 
 class StopTime(Base):
@@ -312,7 +291,7 @@ class StopTime(Base):
     stop_headsign = Column(Unicode)
     pickup_type = Column(Integer)
     drop_off_type = Column(Integer)
-    shape_dist_traveled = Column(Integer, nullable=True)
+    shape_dist_traveled = Column(Unicode, nullable=True)
     timepoint = Column(Integer, nullable=True)
 
     __table_args__ = create_foreign_keys('trips.trip_id', 'stops.stop_id')
@@ -438,9 +417,7 @@ class ShapePoint(Base):
     shape_pt_sequence = Column(Integer, primary_key=True)
     shape_dist_traveled = Column(Float, nullable=True)
 
-    trips = relationship("Trip", backref="shape_points")
-
-    __table_args__ = (UniqueConstraint('feed_id', 'shape_id', name='unique_feed_id_shape_id'),)
+    #trips = relationship("Trip", backref="shape_points")
 
     _validate_lon_lat = _validate_float_range(-180, 180,
                                               'shape_pt_lon', 'shape_pt_lat')
@@ -516,6 +493,5 @@ class FeedInfo(Base):
 
 gtfs_required = [Agency, Stop, Route, Trip, StopTime]
 gtfs_calendar = [Service, ServiceException]
-gtfs_not_required = [Fare, FareRule, ShapePoint, Frequency, Transfer, FeedInfo,
-                     Translation]
+gtfs_not_required = [Fare, FareRule, ShapePoint, Frequency, Transfer, FeedInfo]
 gtfs_all = gtfs_required + gtfs_calendar + gtfs_not_required
